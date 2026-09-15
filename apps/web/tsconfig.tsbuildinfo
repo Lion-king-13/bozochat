@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/components/ErrorBoundary.tsx","./src/components/Field.tsx","./src/components/Logo.tsx","./src/lib/api.ts","./src/lib/auth.tsx","./src/lib/socket.ts","./src/pages/AppHome.tsx","./src/pages/AuthPage.tsx","./src/pages/Landing.tsx","./src/pages/NotFound.tsx","./vite.config.ts"],"version":"5.9.3"}
