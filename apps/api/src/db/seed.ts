@@ -15,11 +15,13 @@ import {
 
 const people = [
   { email: 'julie@orion.test', displayName: 'Julie Martin' },
-  { email: 'thomas@orion.test', displayName: 'Thomas Bernard' },
   { email: 'camille@orion.test', displayName: 'Camille Leroy' },
   { email: 'leo@orion.test', displayName: 'Léo Dubois' },
   { email: 'sophie@orion.test', displayName: 'Sophie Moreau' },
   { email: 'nathan@orion.test', displayName: 'Nathan Petit' },
+  { email: 'thomas@orion.test', displayName: 'Thomas Valeriano' },
+  { email: 'damien@orion.test', displayName: 'Damien Lion' },
+  { email: 'sasha@orion.test', displayName: 'Sasha Lazrac' },
 ];
 
 const groupScripts: Record<string, [number, string][]> = {
