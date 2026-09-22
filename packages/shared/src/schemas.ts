@@ -35,14 +35,45 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 export const MESSAGE_MAX_LENGTH = 4000;
 
+/** Identifiant de conversation — validé aussi bien dans une URL que dans un payload WebSocket. */
+export const conversationIdSchema = z.uuid({ error: 'Conversation invalide.' });
+
+/** Règles de contenu d'un message, partagées par le REST, le WebSocket et le front. */
+export const messageContentSchema = z
+  .string({ error: 'Le message ne peut pas être vide.' })
+  .trim()
+  .min(1, { error: 'Le message ne peut pas être vide.' })
+  .max(MESSAGE_MAX_LENGTH, {
+    error: `Le message ne peut pas dépasser ${MESSAGE_MAX_LENGTH} caractères.`,
+  });
+
+/** Payload de l'événement WebSocket `message:send` (la conversation est dans le payload). */
 export const sendMessageSchema = z.object({
-  conversationId: z.uuid({ error: 'Conversation invalide.' }),
-  content: z
-    .string()
-    .trim()
-    .min(1, { error: 'Le message ne peut pas être vide.' })
-    .max(MESSAGE_MAX_LENGTH, {
-      error: `Le message ne peut pas dépasser ${MESSAGE_MAX_LENGTH} caractères.`,
-    }),
+  conversationId: conversationIdSchema,
+  content: messageContentSchema,
 });
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+
+/** Corps de `POST /api/conversations/:id/messages` (la conversation est dans l'URL). */
+export const createMessageSchema = z.object({ content: messageContentSchema });
+export type CreateMessageInput = z.infer<typeof createMessageSchema>;
+
+export const MESSAGES_PAGE_SIZE = 50;
+export const MESSAGES_PAGE_MAX = 100;
+
+/** Query string de `GET /api/conversations/:id/messages` — pagination par curseur. */
+export const messagesQuerySchema = z.object({
+  cursor: z
+    .string({ error: 'Curseur de pagination invalide.' })
+    .trim()
+    .min(1, { error: 'Curseur de pagination invalide.' })
+    .max(200, { error: 'Curseur de pagination invalide.' })
+    .optional(),
+  limit: z.coerce
+    .number({ error: 'La limite doit être un nombre entier.' })
+    .int({ error: 'La limite doit être un nombre entier.' })
+    .min(1, { error: 'La limite doit être au minimum de 1.' })
+    .max(MESSAGES_PAGE_MAX, { error: `La limite ne peut pas dépasser ${MESSAGES_PAGE_MAX}.` })
+    .default(MESSAGES_PAGE_SIZE),
+});
+export type MessagesQueryInput = z.infer<typeof messagesQuerySchema>;
