@@ -104,7 +104,7 @@ jobs:
             echo "::error::Secrets COOLIFY_WEBHOOK et/ou COOLIFY_TOKEN manquants (Settings → Secrets and variables → Actions)."
             exit 1
           fi
-          curl --fail-with-body -sS -X GET "$COOLIFY_WEBHOOK" -H "Authorization: Bearer $COOLIFY_TOKEN"
+          curl --fail-with-body -sS -X POST "$COOLIFY_WEBHOOK" -H "Authorization: Bearer $COOLIFY_TOKEN"
 
       - name: Vérifier la production
         if: vars.PRODUCTION_URL != ''
