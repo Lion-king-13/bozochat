@@ -1,20 +1,27 @@
-import { Navigate } from 'react-router';
+import { Navigate, Route, Routes, useMatch } from 'react-router';
 import { toast } from 'sonner';
+import { ChatPane } from '../components/chat/ChatPane';
+import { ConversationList } from '../components/chat/ConversationList';
+import { EmptyState } from '../components/chat/EmptyState';
 import { Logo } from '../components/Logo';
 import { useLogout, useMe } from '../lib/auth';
-import { useSocket } from '../lib/socket';
+import { useMessageStream, useSocket } from '../lib/socket';
 
-/** Coquille de l'application connectée — le chat arrive en S3. */
+/** Coquille de l'application connectée : en-tête, liste des conversations et fil de discussion. */
 export function AppHome() {
   const me = useMe();
   const logout = useLogout();
-  const { connected } = useSocket(Boolean(me.data));
+  const { socket, connected } = useSocket(Boolean(me.data));
+  // Écoute `message:new` pour toute la session, y compris sans conversation ouverte.
+  useMessageStream(socket);
+  // Sur mobile, la liste laisse la place au fil dès qu'une conversation est ouverte.
+  const selection = useMatch('/app/c/:conversationId');
 
   if (me.isPending) return <p className="p-8 text-stone-500">Chargement…</p>;
   if (!me.data) return <Navigate to="/login" replace />;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden">
       <header className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3">
         <Logo />
         <div className="flex items-center gap-3 text-sm">
@@ -35,11 +42,16 @@ export function AppHome() {
           </button>
         </div>
       </header>
-      <main className="flex flex-1 items-center justify-center p-8 text-center">
-        <div>
-          <h1 className="text-2xl font-bold">Bienvenue, {me.data.displayName} 👋</h1>
-          <p className="mt-2 text-stone-600">Vos conversations apparaîtront ici.</p>
-        </div>
+      <main className="flex min-h-0 flex-1">
+        <ConversationList meId={me.data.id} hiddenOnMobile={Boolean(selection)} />
+        <Routes>
+          <Route index element={<EmptyState />} />
+          <Route
+            path="c/:conversationId"
+            element={<ChatPane meId={me.data.id} socket={socket} connected={connected} />}
+          />
+          <Route path="*" element={<Navigate to="/app" replace />} />
+        </Routes>
       </main>
     </div>
   );
