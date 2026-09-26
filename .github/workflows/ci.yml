@@ -115,4 +115,3 @@ jobs:
             if curl -fsS "${{ vars.PRODUCTION_URL }}/api/health"; then echo; echo "Production OK"; exit 0; fi
           done
           echo "::warning::Healthcheck non concluant — consulter les logs de déploiement dans Coolify."
-
