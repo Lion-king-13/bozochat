@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { registerSchema, sendMessageSchema } from './schemas';
+import {
+  avatarUrlSchema,
+  changePasswordSchema,
+  registerSchema,
+  sendMessageSchema,
+  updateProfileSchema,
+} from './schemas';
 
 describe('registerSchema', () => {
   it('normalise l’e-mail', () => {
@@ -35,5 +41,56 @@ describe('sendMessageSchema', () => {
   it('conserve le HTML tel quel (l’échappement se fait à l’affichage)', () => {
     const r = sendMessageSchema.parse({ conversationId, content: '<script>x</script>' });
     expect(r.content).toBe('<script>x</script>');
+  });
+});
+
+describe('avatarUrlSchema', () => {
+  it('accepte http(s) et retire les espaces', () => {
+    expect(avatarUrlSchema.parse('  https://cdn.test/a.png ')).toBe('https://cdn.test/a.png');
+    expect(avatarUrlSchema.parse('http://cdn.test/a.png')).toBe('http://cdn.test/a.png');
+  });
+
+  it('accepte null pour retirer la photo', () => {
+    expect(avatarUrlSchema.parse(null)).toBeNull();
+  });
+
+  it('refuse les protocoles autres que http(s)', () => {
+    for (const url of [
+      'javascript:alert(1)',
+      'data:text/html,<script>x</script>',
+      'ftp://x.test',
+    ]) {
+      expect(avatarUrlSchema.safeParse(url).success).toBe(false);
+    }
+  });
+});
+
+describe('updateProfileSchema', () => {
+  it('accepte une mise à jour partielle', () => {
+    expect(updateProfileSchema.parse({ displayName: '  Sasha  ' })).toEqual({
+      displayName: 'Sasha',
+    });
+  });
+
+  it('refuse un nom affiché trop court', () => {
+    const r = updateProfileSchema.safeParse({ displayName: ' A ' });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.message).toBe('Le nom affiché doit contenir au moins 2 caractères.');
+  });
+});
+
+describe('changePasswordSchema', () => {
+  it('exige le mot de passe actuel', () => {
+    const r = changePasswordSchema.safeParse({ currentPassword: '', newPassword: 'motdepasse' });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.message).toBe('Le mot de passe actuel est obligatoire.');
+  });
+
+  it('applique les règles existantes au nouveau mot de passe', () => {
+    const r = changePasswordSchema.safeParse({ currentPassword: 'actuel', newPassword: '123' });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.message).toBe(
+      'Le mot de passe doit contenir au moins 8 caractères.',
+    );
   });
 });
