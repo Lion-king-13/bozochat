@@ -2,7 +2,8 @@ import type { LoginInput, PublicUser, RegisterInput } from '@bozochat/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiRequestError } from './api';
 
-const ME_KEY = ['auth', 'me'];
+/** Clé du cache de l'utilisateur connecté, partagée avec les mutations du profil. */
+export const ME_KEY = ['auth', 'me'];
 
 export function useMe() {
   return useQuery({
