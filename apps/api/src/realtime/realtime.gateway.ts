@@ -25,6 +25,7 @@ import { AuthService } from '../auth/auth.service';
 import { SESSION_COOKIE } from '../auth/session.util';
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../conversations/messages.service';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { conversationRoom, userRoom } from './rooms';
 
 type ClientSocket = Socket<
@@ -60,6 +61,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly auth: AuthService,
     private readonly conversations: ConversationsService,
     private readonly messages: MessagesService,
+    private readonly workspaces: WorkspacesService,
   ) {}
 
   /**
@@ -69,7 +71,10 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
    */
   afterInit(server: Server) {
     // Donne au service métier de quoi diffuser `message:new`, y compris pour les envois REST.
-    this.messages.attachServer(server as Server<ClientToServerEvents, ServerToClientEvents>);
+    const typed = server as Server<ClientToServerEvents, ServerToClientEvents>;
+    this.messages.attachServer(typed);
+    // Retrait d'un membre : ses sockets doivent quitter les rooms des conversations perdues.
+    this.workspaces.attachServer(typed);
 
     server.use((socket, next) => {
       const cookies = parseCookie(socket.handshake.headers.cookie ?? '');

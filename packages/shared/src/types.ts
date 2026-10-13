@@ -1,6 +1,6 @@
 /** Types échangés entre le client et le serveur (réponses API et événements WebSocket). */
 
-import type { SendMessageInput } from './schemas';
+import type { Plan, SendMessageInput, WorkspaceRole } from './schemas';
 
 export interface PublicUser {
   id: string;
@@ -67,4 +67,42 @@ export interface ClientToServerEvents {
   'conversation:join': (payload: { conversationId: string }, ack: (res: Ack) => void) => void;
   'conversation:leave': (payload: { conversationId: string }) => void;
   'message:send': (payload: SendMessageInput, ack: (res: SendMessageAck) => void) => void;
+}
+
+/** Un workspace vu par l'un de ses membres (`role` = le rôle de l'utilisateur connecté). */
+export interface WorkspaceDto {
+  id: string;
+  name: string;
+  slug: string;
+  plan: Plan;
+  role: WorkspaceRole;
+  memberCount: number;
+  /** Quota de membres du plan — null si illimité. */
+  memberLimit: number | null;
+  createdAt: string;
+}
+
+export interface WorkspaceMemberDto {
+  user: MessageAuthor & { email: string };
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
+/** Invitation en attente, vue par les admins du workspace. */
+export interface InvitationDto {
+  id: string;
+  email: string;
+  role: WorkspaceRole;
+  invitedBy: MessageAuthor | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
+/** Invitation reçue, vue par la personne invitée. */
+export interface ReceivedInvitationDto {
+  id: string;
+  workspace: { id: string; name: string };
+  role: WorkspaceRole;
+  invitedBy: MessageAuthor | null;
+  expiresAt: string;
 }

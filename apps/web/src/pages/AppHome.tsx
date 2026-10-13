@@ -7,6 +7,8 @@ import { Logo } from '../components/Logo';
 import { useMe } from '../lib/auth';
 import { useMessageStream, useSocket } from '../lib/socket';
 import { ProfilePage } from './ProfilePage';
+import { WorkspacePage } from './WorkspacePage';
+import { WorkspacesPage } from './WorkspacesPage';
 
 /** Coquille de l'application connectée : en-tête, liste des conversations et fil de discussion. */
 export function AppHome() {
@@ -46,6 +48,8 @@ export function AppHome() {
             element={<ChatPane meId={me.data.id} socket={socket} connected={connected} />}
           />
           <Route path="settings/profile" element={<ProfilePage />} />
+          <Route path="settings/workspaces" element={<WorkspacesPage />} />
+          <Route path="settings/workspaces/:workspaceId" element={<WorkspacePage />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>
       </main>

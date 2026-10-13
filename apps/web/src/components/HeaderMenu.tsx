@@ -107,6 +107,14 @@ export function HeaderMenu() {
           >
             Profil
           </Link>
+          <Link
+            role="menuitem"
+            to="/app/settings/workspaces"
+            onClick={() => setOpen(false)}
+            className="block px-3 py-2 hover:bg-stone-100 focus:bg-stone-100 focus:outline-none"
+          >
+            Workspaces
+          </Link>
           <div className="my-1 border-t border-stone-200" />
           <button
             role="menuitem"

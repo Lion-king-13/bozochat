@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -73,7 +74,38 @@ export const workspaceMembers = pgTable(
     role: workspaceRoleEnum('role').notNull().default('MEMBER'),
     joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [primaryKey({ columns: [t.workspaceId, t.userId] }), index('wm_user_idx').on(t.userId)],
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.userId] }),
+    index('wm_user_idx').on(t.userId),
+    /** Exactement un owner par workspace : garanti par la base, pas seulement par le code. */
+    uniqueIndex('wm_one_owner_uq')
+      .on(t.workspaceId)
+      .where(sql`${t.role} = 'OWNER'`),
+  ],
+);
+
+/**
+ * Invitation en attente, liée à une adresse e-mail : seul le compte qui porte cette adresse
+ * peut l'accepter. La ligne est supprimée une fois acceptée, refusée ou révoquée.
+ */
+export const workspaceInvitations = pgTable(
+  'workspace_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    email: varchar('email', { length: 254 }).notNull(),
+    role: workspaceRoleEnum('role').notNull().default('MEMBER'),
+    invitedById: uuid('invited_by_id').references(() => users.id, { onDelete: 'set null' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    unique('invitations_ws_email_uq').on(t.workspaceId, t.email),
+    index('invitations_email_idx').on(t.email),
+    check('invitations_role_not_owner', sql`${t.role} <> 'OWNER'`),
+  ],
 );
 
 export const conversations = pgTable(
@@ -151,7 +183,15 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 }));
 export const workspacesRelations = relations(workspaces, ({ many }) => ({
   members: many(workspaceMembers),
+  invitations: many(workspaceInvitations),
   conversations: many(conversations),
+}));
+export const workspaceInvitationsRelations = relations(workspaceInvitations, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [workspaceInvitations.workspaceId],
+    references: [workspaces.id],
+  }),
+  invitedBy: one(users, { fields: [workspaceInvitations.invitedById], references: [users.id] }),
 }));
 export const workspaceMembersRelations = relations(workspaceMembers, ({ one }) => ({
   workspace: one(workspaces, {

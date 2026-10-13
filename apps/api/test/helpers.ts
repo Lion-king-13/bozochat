@@ -21,7 +21,7 @@ export async function createTestApp() {
 
 export async function resetDb(db: Database) {
   await db.execute(
-    sql`TRUNCATE messages, participants, conversations, workspace_members, workspaces, sessions, users CASCADE`,
+    sql`TRUNCATE messages, participants, conversations, workspace_invitations, workspace_members, workspaces, sessions, users CASCADE`,
   );
 }
 
