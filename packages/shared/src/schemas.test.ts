@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   avatarUrlSchema,
   changePasswordSchema,
+  createInvitationSchema,
+  createWorkspaceSchema,
   registerSchema,
   sendMessageSchema,
+  updateMemberRoleSchema,
   updateProfileSchema,
 } from './schemas';
 
@@ -91,6 +94,29 @@ describe('changePasswordSchema', () => {
     expect(r.success).toBe(false);
     expect(r.error?.issues[0]?.message).toBe(
       'Le mot de passe doit contenir au moins 8 caractères.',
+    );
+  });
+});
+
+describe('schémas de workspace', () => {
+  it("n'accepte jamais le rôle OWNER à l'invitation ni au changement de rôle", () => {
+    expect(createInvitationSchema.safeParse({ email: 'a@b.be', role: 'OWNER' }).success).toBe(
+      false,
+    );
+    expect(updateMemberRoleSchema.safeParse({ role: 'OWNER' }).success).toBe(false);
+  });
+
+  it('invite en MEMBER par défaut et normalise l’e-mail', () => {
+    expect(createInvitationSchema.parse({ email: ' Thomas@Orion.TEST ' })).toEqual({
+      email: 'thomas@orion.test',
+      role: 'MEMBER',
+    });
+  });
+
+  it('refuse un nom de workspace trop court', () => {
+    const r = createWorkspaceSchema.safeParse({ name: ' a ' });
+    expect(r.error?.issues[0]?.message).toBe(
+      'Le nom du workspace doit contenir au moins 2 caractères.',
     );
   });
 });

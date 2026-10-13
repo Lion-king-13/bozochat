@@ -42,6 +42,15 @@ classDiagram
     +isAdmin() bool
   }
 
+  class WorkspaceInvitation {
+    +UUID id
+    +String email
+    +WorkspaceRole role
+    +DateTime expiresAt
+    +DateTime createdAt
+    +isExpired() bool
+  }
+
   class Conversation {
     +UUID id
     +ConversationType type
@@ -92,6 +101,8 @@ classDiagram
   User "1" *-- "0..*" Session : possède
   User "1" -- "0..*" WorkspaceMember
   Workspace "1" *-- "1..*" WorkspaceMember : membres
+  Workspace "1" *-- "0..*" WorkspaceInvitation : invitations
+  User "0..1" -- "0..*" WorkspaceInvitation : invité par
   Workspace "1" *-- "0..*" Conversation : contient
   Conversation "1" *-- "2..*" Participant : participants
   User "1" -- "0..*" Participant
@@ -101,36 +112,42 @@ classDiagram
 
   Workspace ..> Plan
   WorkspaceMember ..> WorkspaceRole
+  WorkspaceInvitation ..> WorkspaceRole
   Conversation ..> ConversationType
   Participant ..> ParticipantRole
 ```
 
 > `WorkspaceMember` et `Participant` sont des **classes d'association** (relations N–N porteuses d'attributs : rôle, date d'arrivée, dernière lecture).
+> Un workspace a **exactement un** membre `OWNER` (index unique partiel). Une invitation ne porte jamais le rôle `OWNER` (contrainte `CHECK`).
 > Une conversation `DIRECT` a **exactement 2** participants ; une `GROUP` en a 2 ou plus.
 
 ## 2. Choix de modélisation (à reprendre dans le rapport)
 
-| Choix                                                                | Justification                                                                                                                                                  |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **UUID** comme clés primaires                                        | Identifiants non devinables dans les URL (`/c/3f2a…`) → pas d'énumération de conversations.                                                                    |
-| **Une seule table `Conversation`** avec un `type` DIRECT/GROUP       | Même logique d'envoi, de lecture, de notifications et de droits pour les deux cas. Moins de code dupliqué.                                                     |
-| **`directKey`** = ids des 2 utilisateurs triés, unique par workspace | Empêche de créer deux conversations 1:1 entre les mêmes personnes (contrainte garantie par la base, pas seulement par le code).                                |
-| **Non-lus via `Participant.lastReadAt`**                             | Pas de table « message lu » par utilisateur × message (qui exploserait en volume). `unread = COUNT(messages WHERE createdAt > lastReadAt AND authorId ≠ moi)`. |
-| **`Conversation.lastMessageAt`** dénormalisé                         | Tri de la liste des conversations sans jointure coûteuse sur les messages.                                                                                     |
-| **Soft delete** des messages (`deletedAt`)                           | L'historique reste cohérent (« message supprimé ») et permet la modération.                                                                                    |
-| **Sessions en base** (token haché) plutôt que JWT                    | Déconnexion et révocation immédiates (ex. membre retiré), le token brut n'est jamais stocké.                                                                   |
+| Choix                                                                | Justification                                                                                                                                                                       |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **UUID** comme clés primaires                                        | Identifiants non devinables dans les URL (`/c/3f2a…`) → pas d'énumération de conversations.                                                                                         |
+| **Une seule table `Conversation`** avec un `type` DIRECT/GROUP       | Même logique d'envoi, de lecture, de notifications et de droits pour les deux cas. Moins de code dupliqué.                                                                          |
+| **`directKey`** = ids des 2 utilisateurs triés, unique par workspace | Empêche de créer deux conversations 1:1 entre les mêmes personnes (contrainte garantie par la base, pas seulement par le code).                                                     |
+| **Non-lus via `Participant.lastReadAt`**                             | Pas de table « message lu » par utilisateur × message (qui exploserait en volume). `unread = COUNT(messages WHERE createdAt > lastReadAt AND authorId ≠ moi)`.                      |
+| **`Conversation.lastMessageAt`** dénormalisé                         | Tri de la liste des conversations sans jointure coûteuse sur les messages.                                                                                                          |
+| **Soft delete** des messages (`deletedAt`)                           | L'historique reste cohérent (« message supprimé ») et permet la modération.                                                                                                         |
+| **Invitation liée à un e-mail**, supprimée une fois traitée          | Seul le compte qui porte l'adresse peut rejoindre : pas de lien partageable à intercepter. La table ne contient que les invitations en attente ; `(workspaceId, email)` est unique. |
+| **Un seul owner, garanti par la base**                               | Index unique partiel `WorkspaceMember(workspaceId) WHERE role = 'OWNER'` : ni une course ni un bug applicatif ne peuvent créer un second propriétaire.                              |
+| **Sessions en base** (token haché) plutôt que JWT                    | Déconnexion et révocation immédiates (ex. membre retiré), le token brut n'est jamais stocké.                                                                                        |
 
 ## 3. Intégrité référentielle
 
-| Relation                           | `onDelete` | Raison                                                                                                                |
-| ---------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
-| Session → User                     | `Cascade`  | Un compte supprimé n'a plus de sessions.                                                                              |
-| WorkspaceMember → Workspace / User | `Cascade`  | —                                                                                                                     |
-| Conversation → Workspace           | `Cascade`  | Supprimer un workspace supprime ses conversations.                                                                    |
-| Participant → Conversation / User  | `Cascade`  | —                                                                                                                     |
-| Message → Conversation             | `Cascade`  | —                                                                                                                     |
-| Message → User (auteur)            | `SetNull`  | Si un compte est supprimé, ses messages restent (« Utilisateur supprimé ») : l'historique des autres n'est pas cassé. |
-| Conversation → User (créateur)     | `SetNull`  | Idem.                                                                                                                 |
+| Relation                                | `onDelete` | Raison                                                                                                                |
+| --------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| Session → User                          | `Cascade`  | Un compte supprimé n'a plus de sessions.                                                                              |
+| WorkspaceInvitation → Workspace         | `Cascade`  | Supprimer un workspace supprime ses invitations.                                                                      |
+| WorkspaceInvitation → User (invité par) | `SetNull`  | L'invitation reste valable si le compte qui l'a envoyée est supprimé.                                                 |
+| WorkspaceMember → Workspace / User      | `Cascade`  | —                                                                                                                     |
+| Conversation → Workspace                | `Cascade`  | Supprimer un workspace supprime ses conversations.                                                                    |
+| Participant → Conversation / User       | `Cascade`  | —                                                                                                                     |
+| Message → Conversation                  | `Cascade`  | —                                                                                                                     |
+| Message → User (auteur)                 | `SetNull`  | Si un compte est supprimé, ses messages restent (« Utilisateur supprimé ») : l'historique des autres n'est pas cassé. |
+| Conversation → User (créateur)          | `SetNull`  | Idem.                                                                                                                 |
 
 Contraintes supplémentaires : `email` unique, `slug` unique, `(workspaceId, directKey)` unique, longueurs max (`varchar`), `CHECK` contenu de message non vide, clés composites sur les tables d'association (un utilisateur ne peut pas être deux fois membre).
 
@@ -142,6 +159,7 @@ Contraintes supplémentaires : `email` unique, `slug` unique, `(workspaceId, dir
 | `Conversation(workspaceId, lastMessageAt DESC)`          | Liste des conversations triées par activité.                   |
 | `Participant(userId)`                                    | « Mes conversations » + vérification d'accès.                  |
 | `WorkspaceMember(userId)`                                | « Mes workspaces ».                                            |
+| `WorkspaceInvitation(email)`                             | « Mes invitations reçues ».                                    |
 | _(optionnelle)_ GIN sur `to_tsvector('french', content)` | Recherche plein texte.                                         |
 
 ## 5. Seed

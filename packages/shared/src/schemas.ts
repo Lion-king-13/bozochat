@@ -119,3 +119,56 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const WORKSPACE_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
+export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
+
+export const PLANS = ['FREE', 'PRO'] as const;
+export type Plan = (typeof PLANS)[number];
+
+/** Quotas par plan (cahier des charges §4) — `null` = illimité. Appliqués côté serveur. */
+export const PLAN_LIMITS: Record<Plan, { members: number | null }> = {
+  FREE: { members: 10 },
+  PRO: { members: null },
+};
+
+export const workspaceIdSchema = z.uuid({ error: 'Workspace invalide.' });
+export const userIdSchema = z.uuid({ error: 'Utilisateur invalide.' });
+export const invitationIdSchema = z.uuid({ error: 'Invitation invalide.' });
+
+export const workspaceNameSchema = z
+  .string({ error: 'Le nom du workspace est obligatoire.' })
+  .trim()
+  .min(2, { error: 'Le nom du workspace doit contenir au moins 2 caractères.' })
+  .max(80, { error: 'Le nom du workspace ne peut pas dépasser 80 caractères.' });
+
+/** Corps de `POST /api/workspaces`. */
+export const createWorkspaceSchema = z.object({ name: workspaceNameSchema });
+export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
+
+/** Corps de `PATCH /api/workspaces/:id` : renommer (admin) ou changer de plan (owner). */
+export const updateWorkspaceSchema = z.object({
+  name: workspaceNameSchema.optional(),
+  plan: z.enum(PLANS, { error: 'Plan inconnu.' }).optional(),
+});
+export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;
+
+/**
+ * Rôles attribuables par invitation ou changement de rôle.
+ * OWNER n'en fait jamais partie : il y a exactement un owner, le créateur du workspace.
+ */
+export const assignableRoleSchema = z.enum(['ADMIN', 'MEMBER'], {
+  error: 'Le rôle doit être ADMIN ou MEMBER.',
+});
+export type AssignableRole = z.infer<typeof assignableRoleSchema>;
+
+/** Corps de `POST /api/workspaces/:id/invitations`. */
+export const createInvitationSchema = z.object({
+  email: emailSchema,
+  role: assignableRoleSchema.default('MEMBER'),
+});
+export type CreateInvitationInput = z.input<typeof createInvitationSchema>;
+
+/** Corps de `PATCH /api/workspaces/:id/members/:userId`. */
+export const updateMemberRoleSchema = z.object({ role: assignableRoleSchema });
+export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
