@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
   conversationIdSchema,
@@ -47,5 +47,14 @@ export class ConversationsController {
     @CurrentUser() user: PublicUser,
   ): Promise<MessageDto> {
     return this.messages.create(conversationId, user, body.content);
+  }
+
+  @Post(':id/read')
+  @HttpCode(204)
+  markRead(
+    @Param('id', new ZodValidationPipe(conversationIdSchema)) conversationId: string,
+    @CurrentUser() user: PublicUser,
+  ): Promise<void> {
+    return this.conversations.markRead(conversationId, user.id);
   }
 }

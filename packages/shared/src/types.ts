@@ -34,6 +34,8 @@ export interface ConversationListItemDto {
   createdAt: string;
   lastMessageAt: string;
   participants: MessageAuthor[];
+  /** Messages des autres participants créés après le `lastReadAt` de l'utilisateur connecté. */
+  unreadCount: number;
 }
 
 /** Page d'historique : les messages sont du plus récent au plus ancien. */

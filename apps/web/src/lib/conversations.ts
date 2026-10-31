@@ -15,7 +15,9 @@ import {
 import { api, ApiRequestError } from './api';
 
 export const conversationsKey = ['conversations'] as const;
-export const messagesKey = (conversationId: string) => ['messages', conversationId] as const;
+/** Préfixe commun : invalide l'historique de toutes les conversations d'un coup. */
+export const allMessagesKey = ['messages'] as const;
+export const messagesKey = (conversationId: string) => [...allMessagesKey, conversationId] as const;
 
 /** Le curseur est opaque : jamais construit ni analysé côté client, seulement renvoyé tel quel. */
 type MessagesCache = InfiniteData<MessagePageDto, string | null>;
@@ -31,6 +33,37 @@ export function conversationTitle(conversation: ConversationListItemDto, meId: s
   const others = conversation.participants.filter((p) => p.id !== meId);
   if (others.length === 0) return 'Conversation';
   return others.map((p) => p.displayName).join(', ');
+}
+
+/**
+ * Total pour le badge global. La conversation affichée ne compte pas : elle est en cours de
+ * lecture, même si la liste reçue précède de quelques millisecondes le marquage côté serveur.
+ */
+export function totalUnread(
+  conversations: ConversationListItemDto[] | undefined,
+  activeConversationId: string | undefined,
+): number {
+  return (conversations ?? []).reduce(
+    (total, c) => (c.id === activeConversationId ? total : total + c.unreadCount),
+    0,
+  );
+}
+
+/** Texte compact d'un badge : le détail exact reste dans `unreadLabel`. */
+export function formatUnreadCount(count: number): string {
+  return count > 99 ? '99+' : String(count);
+}
+
+export function unreadLabel(count: number): string {
+  return count === 1 ? '1 message non lu' : `${count} messages non lus`;
+}
+
+/** Remet à zéro le compteur d'une conversation dans la liste, sans toucher aux autres. */
+export function clearUnread(
+  conversations: ConversationListItemDto[] | undefined,
+  conversationId: string,
+): ConversationListItemDto[] | undefined {
+  return conversations?.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c));
 }
 
 /**
@@ -90,6 +123,24 @@ export function useMessages(conversationId: string | undefined) {
       return api<MessagePageDto>(`/conversations/${conversationId ?? ''}/messages${query}`);
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+}
+
+/**
+ * Marque une conversation comme lue. Le compteur passe à zéro immédiatement ; la relecture finale
+ * (succès comme échec) laisse le dernier mot à la base, seule source de vérité des non-lus.
+ */
+export function useMarkConversationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) =>
+      api<void>(`/conversations/${conversationId}/read`, { method: 'POST' }),
+    onMutate: (conversationId) => {
+      qc.setQueryData<ConversationListItemDto[]>(conversationsKey, (list) =>
+        clearUnread(list, conversationId),
+      );
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: conversationsKey }),
   });
 }
 

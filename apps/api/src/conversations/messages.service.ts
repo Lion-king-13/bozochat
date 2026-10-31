@@ -7,12 +7,12 @@ import type {
   PublicUser,
   ServerToClientEvents,
 } from '@bozochat/shared';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import type { Server } from 'socket.io';
 import type { Database } from '../db/client';
 import { InjectDb } from '../db/db.module';
-import { conversations, messages } from '../db/schema';
-import { conversationRoom } from '../realtime/rooms';
+import { conversations, messages, participants } from '../db/schema';
+import { conversationRoom, userRoom } from '../realtime/rooms';
 import { ConversationsService } from './conversations.service';
 import { decodeCursor, encodeCursor } from './cursor';
 
@@ -96,14 +96,17 @@ export class MessagesService {
   }
 
   /**
-   * Crée un message puis le diffuse dans `conversation:<id>`.
+   * Crée un message puis le diffuse dans `conversation:<id>`, et notifie les autres participants
+   * dans leur room personnelle : ils n'ont pas besoin d'avoir cette conversation ouverte.
    * L'insertion et la mise à jour de `lastMessageAt` sont dans la même transaction :
    * la liste des conversations ne peut pas être désynchronisée de l'historique.
+   * Les destinataires y sont lus aussi : une erreur après le commit ferait croire à un échec,
+   * et le renvoi du message créerait un doublon.
    */
   async create(conversationId: string, author: PublicUser, content: string): Promise<MessageDto> {
     await this.conversations.assertParticipant(conversationId, author.id);
 
-    const row = await this.db.transaction(async (tx) => {
+    const { row, recipients } = await this.db.transaction(async (tx) => {
       const [inserted] = await tx
         .insert(messages)
         .values({ conversationId, authorId: author.id, content })
@@ -112,13 +115,23 @@ export class MessagesService {
         .update(conversations)
         .set({ lastMessageAt: inserted!.createdAt })
         .where(eq(conversations.id, conversationId));
-      return inserted!;
+      const others = await tx
+        .select({ userId: participants.userId })
+        .from(participants)
+        .where(
+          and(eq(participants.conversationId, conversationId), ne(participants.userId, author.id)),
+        );
+      return { row: inserted!, recipients: others.map((other) => userRoom(other.userId)) };
     });
 
     const message = toMessageDto({ ...row, author });
     // Diffusé après le commit, à toute la room y compris l'émetteur : le client déduplique
     // sur l'id, ce qui reste correct avec plusieurs onglets ouverts.
     this.server?.to(conversationRoom(conversationId)).emit('message:new', message);
+    // Garde indispensable : `to([])` ne cible aucune room, donc diffuserait à tous les sockets.
+    if (recipients.length > 0) {
+      this.server?.to(recipients).emit('notification:new', { conversationId, message });
+    }
     return message;
   }
 }
