@@ -4,7 +4,9 @@ import { ConversationList } from '../components/chat/ConversationList';
 import { EmptyState } from '../components/chat/EmptyState';
 import { HeaderMenu } from '../components/HeaderMenu';
 import { Logo } from '../components/Logo';
+import { NotificationBell } from '../components/NotificationBell';
 import { useMe } from '../lib/auth';
+import { useNotifications } from '../lib/notifications';
 import { useMessageStream, useSocket } from '../lib/socket';
 import { ProfilePage } from './ProfilePage';
 import { WorkspacePage } from './WorkspacePage';
@@ -18,6 +20,8 @@ export function AppHome() {
   useMessageStream(socket);
   // Sur mobile, la liste laisse la place au fil dès qu'une conversation est ouverte.
   const selection = useMatch('/app/c/:conversationId');
+  const activeConversationId = selection?.params.conversationId;
+  useNotifications(socket, activeConversationId);
   // Les réglages occupent toute la largeur : pas de colonne latérale supplémentaire.
   const settings = useMatch('/app/settings/*');
 
@@ -36,6 +40,7 @@ export function AppHome() {
             {connected ? 'En ligne' : 'Connexion…'}
           </span>
           <span className="hidden sm:inline">{me.data.displayName}</span>
+          <NotificationBell activeConversationId={activeConversationId} />
           <HeaderMenu />
         </div>
       </header>
