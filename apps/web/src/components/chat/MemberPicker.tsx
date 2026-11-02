@@ -1,5 +1,6 @@
 import type { WorkspaceMemberDto } from '@bozochat/shared';
 import { useState } from 'react';
+import { initials } from '../../lib/format';
 
 type Props = {
   members: WorkspaceMemberDto[];
@@ -11,14 +12,6 @@ type Props = {
 };
 
 const ROW = 'flex items-center gap-3 px-3 py-2 hover:bg-stone-50';
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-}
 
 /** Liste filtrable des membres d'un workspace, pour démarrer une conversation ou un groupe. */
 export function MemberPicker({ members, selected, onToggle, disabled, emptyLabel }: Props) {
