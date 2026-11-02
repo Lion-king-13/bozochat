@@ -172,3 +172,54 @@ export type CreateInvitationInput = z.input<typeof createInvitationSchema>;
 /** Corps de `PATCH /api/workspaces/:id/members/:userId`. */
 export const updateMemberRoleSchema = z.object({ role: assignableRoleSchema });
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+
+// ── Conversations : création, groupes et participants ──────────────────────────
+
+export const PARTICIPANT_ROLES = ['ADMIN', 'MEMBER'] as const;
+export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
+
+/** Plafond d'un ajout groupé : une seule requête ne peut pas insérer des milliers de lignes. */
+export const GROUP_PARTICIPANTS_MAX = 100;
+
+export const conversationNameSchema = z
+  .string({ error: 'Le nom du groupe est obligatoire.' })
+  .trim()
+  .min(1, { error: 'Le nom du groupe est obligatoire.' })
+  .max(80, { error: 'Le nom du groupe ne peut pas dépasser 80 caractères.' });
+
+const participantIdsSchema = z
+  .array(userIdSchema, { error: 'Participants invalides.' })
+  .max(GROUP_PARTICIPANTS_MAX, {
+    error: `Vous pouvez ajouter au maximum ${GROUP_PARTICIPANTS_MAX} personnes à la fois.`,
+  });
+
+/** Corps de `POST /api/conversations/direct` : ouvre (ou retrouve) la conversation 1:1. */
+export const createDirectConversationSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  userId: userIdSchema,
+});
+export type CreateDirectConversationInput = z.infer<typeof createDirectConversationSchema>;
+
+/** Corps de `POST /api/conversations/group` — le créateur n'a pas à s'inclure lui-même. */
+export const createGroupConversationSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  name: conversationNameSchema,
+  participantIds: participantIdsSchema.min(1, { error: 'Ajoutez au moins un participant.' }),
+});
+export type CreateGroupConversationInput = z.infer<typeof createGroupConversationSchema>;
+
+/** Corps de `PATCH /api/conversations/:id` : renommer un groupe. */
+export const updateConversationSchema = z.object({ name: conversationNameSchema });
+export type UpdateConversationInput = z.infer<typeof updateConversationSchema>;
+
+/** Corps de `POST /api/conversations/:id/participants`. */
+export const addParticipantsSchema = z.object({
+  userIds: participantIdsSchema.min(1, { error: 'Choisissez au moins une personne.' }),
+});
+export type AddParticipantsInput = z.infer<typeof addParticipantsSchema>;
+
+/** Corps de `PATCH /api/conversations/:id/participants/:userId`. */
+export const updateParticipantRoleSchema = z.object({
+  role: z.enum(PARTICIPANT_ROLES, { error: 'Le rôle doit être ADMIN ou MEMBER.' }),
+});
+export type UpdateParticipantRoleInput = z.infer<typeof updateParticipantRoleSchema>;
