@@ -8,7 +8,9 @@ import type {
 } from '@bozochat/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { io, type Socket } from 'socket.io-client';
+import { toast } from 'sonner';
 import { conversationsKey, upsertMessageInCache } from './conversations';
 
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -126,4 +128,34 @@ export function useMessageStream(socket: AppSocket | null): void {
       socket.off('message:new', onMessage);
     };
   }, [socket, qc]);
+}
+
+/**
+ * Garde la liste des conversations à jour quand un groupe change (création, nom, participants,
+ * rôles). Retiré d'une conversation affichée, l'utilisateur revient à l'accueil.
+ */
+export function useConversationEvents(
+  socket: AppSocket | null,
+  activeConversationId: string | undefined,
+): void {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!socket) return;
+    const onUpdated = () => void qc.invalidateQueries({ queryKey: conversationsKey });
+    const onRemoved = ({ conversationId }: { conversationId: string }) => {
+      void qc.invalidateQueries({ queryKey: conversationsKey });
+      if (conversationId === activeConversationId) {
+        toast.info('Vous ne faites plus partie de cette conversation.');
+        void navigate('/app', { replace: true });
+      }
+    };
+    socket.on('conversation:updated', onUpdated);
+    socket.on('conversation:removed', onRemoved);
+    return () => {
+      socket.off('conversation:updated', onUpdated);
+      socket.off('conversation:removed', onRemoved);
+    };
+  }, [socket, qc, navigate, activeConversationId]);
 }

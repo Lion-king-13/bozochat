@@ -7,7 +7,7 @@ import { Logo } from '../components/Logo';
 import { NotificationBell } from '../components/NotificationBell';
 import { useMe } from '../lib/auth';
 import { useNotifications } from '../lib/notifications';
-import { useMessageStream, useSocket } from '../lib/socket';
+import { useConversationEvents, useMessageStream, useSocket } from '../lib/socket';
 import { ProfilePage } from './ProfilePage';
 import { WorkspacePage } from './WorkspacePage';
 import { WorkspacesPage } from './WorkspacesPage';
@@ -22,6 +22,7 @@ export function AppHome() {
   const selection = useMatch('/app/c/:conversationId');
   const activeConversationId = selection?.params.conversationId;
   useNotifications(socket, activeConversationId);
+  useConversationEvents(socket, activeConversationId);
   // Les réglages occupent toute la largeur : pas de colonne latérale supplémentaire.
   const settings = useMatch('/app/settings/*');
 

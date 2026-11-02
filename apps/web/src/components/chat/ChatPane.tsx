@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { conversationTitle, errorMessage, useConversations } from '../../lib/conversations';
 import { useConversationRoom, type AppSocket } from '../../lib/socket';
+import { GroupSettingsDialog } from './GroupSettingsDialog';
 import { MessageComposer } from './MessageComposer';
 import { MessageList } from './MessageList';
 
@@ -11,6 +13,7 @@ export function ChatPane({ meId, socket, connected }: Props) {
   const conversations = useConversations();
   // Abonnement à la room, rejoué automatiquement à chaque reconnexion.
   const roomError = useConversationRoom(socket, conversationId);
+  const [managing, setManaging] = useState(false);
 
   const conversation = conversations.data?.find((c) => c.id === conversationId);
   const title = conversation ? conversationTitle(conversation, meId) : 'Conversation';
@@ -28,11 +31,28 @@ export function ChatPane({ meId, socket, connected }: Props) {
         >
           ←
         </Link>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate font-semibold">{title}</h1>
           {participants && <p className="truncate text-xs text-stone-500">{participants}</p>}
         </div>
+        {conversation?.type === 'GROUP' && (
+          <button
+            type="button"
+            onClick={() => setManaging(true)}
+            className="shrink-0 rounded-lg border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
+          >
+            Gérer
+          </button>
+        )}
       </header>
+
+      {managing && conversation && (
+        <GroupSettingsDialog
+          conversation={conversation}
+          meId={meId}
+          onClose={() => setManaging(false)}
+        />
+      )}
 
       {conversations.isError && (
         <p role="alert" className="m-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
