@@ -49,7 +49,12 @@ export function ConfirmButton({
   }
 
   return (
-    <span role="group" aria-label={question} className="flex flex-wrap items-center gap-2">
+    // `basis-full` : dans une ligne flex, la question passe dessous au lieu d'écraser le nom.
+    <span
+      role="group"
+      aria-label={question}
+      className="flex basis-full flex-wrap items-center gap-2"
+    >
       <span className="text-sm text-stone-700">{question}</span>
       <button
         ref={confirmRef}
