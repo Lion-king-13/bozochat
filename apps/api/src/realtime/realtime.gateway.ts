@@ -23,6 +23,7 @@ import { toApiError } from '../common/all-exceptions.filter';
 import { zodToApiError } from '../common/zod-validation.pipe';
 import { AuthService } from '../auth/auth.service';
 import { SESSION_COOKIE } from '../auth/session.util';
+import { ConversationManagementService } from '../conversations/conversation-management.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../conversations/messages.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -60,6 +61,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
   constructor(
     private readonly auth: AuthService,
     private readonly conversations: ConversationsService,
+    private readonly management: ConversationManagementService,
     private readonly messages: MessagesService,
     private readonly workspaces: WorkspacesService,
   ) {}
@@ -75,6 +77,8 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     this.messages.attachServer(typed);
     // Retrait d'un membre : ses sockets doivent quitter les rooms des conversations perdues.
     this.workspaces.attachServer(typed);
+    // Groupes : prévenir les participants et faire quitter la room aux personnes retirées.
+    this.management.attachServer(typed);
 
     server.use((socket, next) => {
       const cookies = parseCookie(socket.handshake.headers.cookie ?? '');

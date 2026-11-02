@@ -7,7 +7,8 @@ import { conversations, messages, participants } from '../db/schema';
 
 /**
  * Cœur des permissions : toute lecture/écriture/abonnement temps réel sur une conversation
- * passe par assertParticipant. À enrichir en S4 (création 1:1, groupes, participants…).
+ * passe par assertParticipant. Création et administration des groupes :
+ * ConversationManagementService.
  */
 @Injectable()
 export class ConversationsService {
@@ -29,14 +30,31 @@ export class ConversationsService {
   }
 
   /** Les conversations dont l'utilisateur est participant, les plus actives en premier. */
-  async listForUser(userId: string): Promise<ConversationListItemDto[]> {
+  listForUser(userId: string): Promise<ConversationListItemDto[]> {
+    return this.findForUser(userId);
+  }
+
+  /** Une conversation vue par l'un de ses participants (403 sinon, comme assertParticipant). */
+  async getForUser(conversationId: string, userId: string): Promise<ConversationListItemDto> {
+    const [conversation] = await this.findForUser(userId, conversationId);
+    if (!conversation) throw new ForbiddenException("Vous n'avez pas accès à cette conversation.");
+    return conversation;
+  }
+
+  private async findForUser(
+    userId: string,
+    conversationId?: string,
+  ): Promise<ConversationListItemDto[]> {
     const rows = await this.db.query.conversations.findMany({
-      where: inArray(
-        conversations.id,
-        this.db
-          .select({ id: participants.conversationId })
-          .from(participants)
-          .where(eq(participants.userId, userId)),
+      where: and(
+        inArray(
+          conversations.id,
+          this.db
+            .select({ id: participants.conversationId })
+            .from(participants)
+            .where(eq(participants.userId, userId)),
+        ),
+        conversationId ? eq(conversations.id, conversationId) : undefined,
       ),
       // L'id départage deux conversations de même activité : ordre stable.
       orderBy: [desc(conversations.lastMessageAt), desc(conversations.id)],
@@ -56,10 +74,11 @@ export class ConversationsService {
       name: conversation.name,
       createdAt: conversation.createdAt.toISOString(),
       lastMessageAt: conversation.lastMessageAt.toISOString(),
-      participants: conversation.participants.map(({ user }) => ({
+      participants: conversation.participants.map(({ user, role }) => ({
         id: user.id,
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
+        role,
       })),
       unreadCount: unreadCounts.get(conversation.id) ?? 0,
     }));

@@ -1,6 +1,6 @@
 /** Types échangés entre le client et le serveur (réponses API et événements WebSocket). */
 
-import type { Plan, SendMessageInput, WorkspaceRole } from './schemas';
+import type { ParticipantRole, Plan, SendMessageInput, WorkspaceRole } from './schemas';
 
 export interface PublicUser {
   id: string;
@@ -24,6 +24,11 @@ export interface MessageDto {
 
 export type ConversationType = 'DIRECT' | 'GROUP';
 
+/** Participant d'une conversation, avec son rôle dans celle-ci (ADMIN gère le groupe). */
+export interface ConversationParticipantDto extends MessageAuthor {
+  role: ParticipantRole;
+}
+
 /** Une entrée de la liste « mes conversations » (triée par activité). */
 export interface ConversationListItemDto {
   id: string;
@@ -33,7 +38,7 @@ export interface ConversationListItemDto {
   name: string | null;
   createdAt: string;
   lastMessageAt: string;
-  participants: MessageAuthor[];
+  participants: ConversationParticipantDto[];
   /** Messages des autres participants créés après le `lastReadAt` de l'utilisateur connecté. */
   unreadCount: number;
 }
@@ -63,6 +68,10 @@ export type SendMessageAck = { ok: true; message: MessageDto } | { ok: false; er
 export interface ServerToClientEvents {
   'message:new': (message: MessageDto) => void;
   'notification:new': (payload: { conversationId: string; message: MessageDto }) => void;
+  /** Création, renommage, participants ou rôles modifiés : la liste est à recharger. */
+  'conversation:updated': (payload: { conversationId: string }) => void;
+  /** L'utilisateur ne fait plus partie de la conversation (retiré ou parti). */
+  'conversation:removed': (payload: { conversationId: string }) => void;
 }
 
 export interface ClientToServerEvents {
