@@ -11,6 +11,7 @@ import {
   useRenameConversation,
 } from '../../lib/conversations';
 import { useMembers, useWorkspaces } from '../../lib/workspaces';
+import { ConfirmButton } from '../ConfirmButton';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
 import { MemberPicker } from './MemberPicker';
@@ -132,17 +133,14 @@ function ParticipantsSection({ conversation, meId, manager }: ParticipantsProps)
                     <option value="MEMBER">{PARTICIPANT_ROLE_LABELS.MEMBER}</option>
                     <option value="ADMIN">{PARTICIPANT_ROLE_LABELS.ADMIN}</option>
                   </select>
-                  <button
-                    type="button"
+                  <ConfirmButton
+                    label="Retirer"
+                    question={`Retirer ${p.displayName} ?`}
+                    confirmLabel="Oui, retirer"
+                    onConfirm={() => remove.mutate(p.id)}
                     disabled={pending}
-                    onClick={() => {
-                      if (window.confirm(`Retirer ${p.displayName} du groupe ?`))
-                        remove.mutate(p.id);
-                    }}
                     className={DANGER}
-                  >
-                    Retirer
-                  </button>
+                  />
                 </>
               ) : (
                 <span className="text-sm text-stone-600">{PARTICIPANT_ROLE_LABELS[p.role]}</span>
@@ -210,22 +208,21 @@ function LeaveSection({ conversation, meId, onLeft }: LeaveProps) {
   return (
     <section className={SECTION}>
       <Alert error={leave.error} />
-      <button
-        type="button"
-        disabled={leave.isPending}
-        onClick={() => {
-          if (!window.confirm('Quitter ce groupe ? Vous ne verrez plus ses messages.')) return;
+      <ConfirmButton
+        label="Quitter le groupe"
+        question="Vous ne verrez plus ses messages."
+        confirmLabel="Oui, quitter"
+        onConfirm={() =>
           leave.mutate(meId, {
             onSuccess: () => {
               onLeft();
               void navigate('/app', { replace: true });
             },
-          });
-        }}
+          })
+        }
+        disabled={leave.isPending}
         className={DANGER}
-      >
-        Quitter le groupe
-      </button>
+      />
     </section>
   );
 }
