@@ -34,7 +34,9 @@ export function MessageBubble({ message, mine, showAuthor }: Props) {
       ) : (
         <span className="h-8 w-8 shrink-0" aria-hidden="true" />
       )}
-      <div className={`flex min-w-0 max-w-[80%] flex-col sm:max-w-lg ${mine ? 'items-end' : 'items-start'}`}>
+      <div
+        className={`flex min-w-0 max-w-[80%] flex-col sm:max-w-lg ${mine ? 'items-end' : 'items-start'}`}
+      >
         {showAuthor && (
           <span className="px-1 text-xs font-medium text-stone-500">{authorName}</span>
         )}
