@@ -27,7 +27,7 @@ export function Modal({ title, onClose, children }: Props) {
         // Clic sur le fond (le <dialog> lui-même, pas son contenu) : fermeture.
         if (e.target === e.currentTarget) onClose();
       }}
-      className="m-0 h-dvh max-h-none w-full max-w-none bg-white p-0 backdrop:bg-ink/40 sm:m-auto sm:h-auto sm:max-h-[85dvh] sm:max-w-lg sm:rounded-2xl sm:shadow-xl"
+      className="m-0 h-dvh max-h-none w-full max-w-none bg-white p-0 backdrop:bg-ink/40 sm:m-auto sm:h-fit sm:max-h-[85dvh] sm:max-w-lg sm:rounded-2xl sm:shadow-xl"
     >
       <div className="flex h-full max-h-[inherit] flex-col">
         <header className="flex items-center justify-between gap-3 border-b border-stone-200 px-5 py-4">
