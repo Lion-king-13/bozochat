@@ -10,10 +10,12 @@ export function Modal({ title, onClose, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
+  // Pas de close() au nettoyage : il émettrait `close`, donc onClose, et StrictMode (qui monte
+  // les effets deux fois en dev) refermerait la fenêtre aussitôt ouverte. Retiré du DOM, un
+  // <dialog> quitte de toute façon le mode modal.
   useEffect(() => {
     const dialog = ref.current;
     if (dialog && !dialog.open) dialog.showModal();
-    return () => dialog?.close();
   }, []);
 
   return (
