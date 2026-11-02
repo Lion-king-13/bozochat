@@ -34,15 +34,17 @@ export function MessageBubble({ message, mine, showAuthor }: Props) {
       ) : (
         <span className="h-8 w-8 shrink-0" aria-hidden="true" />
       )}
-      <div className={`flex min-w-0 max-w-lg flex-col ${mine ? 'items-end' : 'items-start'}`}>
+      <div
+        className={`flex min-w-0 max-w-[80%] flex-col sm:max-w-lg ${mine ? 'items-end' : 'items-start'}`}
+      >
         {showAuthor && (
           <span className="px-1 text-xs font-medium text-stone-500">{authorName}</span>
         )}
-        <div className={`mt-0.5 rounded-2xl px-3 py-2 ${bubble}`}>
+        <div className={`mt-0.5 max-w-full rounded-2xl px-3 py-2 ${bubble}`}>
           {message.deleted ? (
             <p className="text-sm italic text-stone-500">Message supprimé</p>
           ) : (
-            <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
+            <p className="text-sm whitespace-pre-wrap wrap-anywhere">{message.content}</p>
           )}
           <p
             className={`mt-1 text-xs ${mine ? 'text-right' : ''} ${

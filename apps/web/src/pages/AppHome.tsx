@@ -29,7 +29,7 @@ export function AppHome() {
   if (!me.data) return <Navigate to="/login" replace />;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <header className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3">
         <Logo />
         <div className="flex items-center gap-3 text-sm">
