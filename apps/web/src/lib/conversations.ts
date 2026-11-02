@@ -1,8 +1,12 @@
 import type {
   ConversationListItemDto,
+  CreateDirectConversationInput,
+  CreateGroupConversationInput,
   CreateMessageInput,
   MessageDto,
   MessagePageDto,
+  ParticipantRole,
+  WorkspaceRole,
 } from '@bozochat/shared';
 import {
   useInfiniteQuery,
@@ -158,4 +162,89 @@ export function useSendMessage(conversationId: string) {
       void qc.invalidateQueries({ queryKey: conversationsKey });
     },
   });
+}
+
+// ---------------------------------------------------------------- Création et groupes
+
+export const PARTICIPANT_ROLE_LABELS: Record<ParticipantRole, string> = {
+  ADMIN: 'Administrateur',
+  MEMBER: 'Membre',
+};
+
+/**
+ * Miroir de la règle serveur (conversation-permissions.ts), pour n'afficher que les actions
+ * possibles : admin du groupe, ou admin/owner du workspace. Le serveur reste seul juge.
+ */
+export function canManageGroup(
+  conversation: ConversationListItemDto,
+  meId: string,
+  workspaceRole: WorkspaceRole | undefined,
+): boolean {
+  if (conversation.type !== 'GROUP') return false;
+  const me = conversation.participants.find((p) => p.id === meId);
+  return me?.role === 'ADMIN' || workspaceRole === 'ADMIN' || workspaceRole === 'OWNER';
+}
+
+/** Après chaque changement : la liste (noms, participants, rôles) est relue depuis l'API. */
+function useConversationMutation<TInput, TResult = void>(
+  request: (input: TInput) => Promise<TResult>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: request,
+    onSuccess: () => qc.invalidateQueries({ queryKey: conversationsKey }),
+  });
+}
+
+/** Ouvre la conversation 1:1 avec un membre, ou renvoie celle qui existe déjà. */
+export function useOpenDirect() {
+  return useConversationMutation((input: CreateDirectConversationInput) =>
+    api<ConversationListItemDto>('/conversations/direct', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+export function useCreateGroup() {
+  return useConversationMutation((input: CreateGroupConversationInput) =>
+    api<ConversationListItemDto>('/conversations/group', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+export function useRenameConversation(conversationId: string) {
+  return useConversationMutation((name: string) =>
+    api<void>(`/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
+  );
+}
+
+export function useAddParticipants(conversationId: string) {
+  return useConversationMutation((userIds: string[]) =>
+    api<void>(`/conversations/${conversationId}/participants`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds }),
+    }),
+  );
+}
+
+/** Retirer quelqu'un, ou quitter le groupe avec son propre id. */
+export function useRemoveParticipant(conversationId: string) {
+  return useConversationMutation((userId: string) =>
+    api<void>(`/conversations/${conversationId}/participants/${userId}`, { method: 'DELETE' }),
+  );
+}
+
+export function useChangeParticipantRole(conversationId: string) {
+  return useConversationMutation(({ userId, role }: { userId: string; role: ParticipantRole }) =>
+    api<void>(`/conversations/${conversationId}/participants/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+  );
 }
